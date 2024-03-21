@@ -1,5 +1,7 @@
 # Physics-Transfer Learning for Material Strength Screening
+
 ![PT](./GA.png)
+
 ## Overview
 
 The strength of materials, like many problems in the natural sciences, spans multiple length and time scales, and the solution has to balance accuracy and performance.
@@ -17,7 +19,7 @@ cd ./PT
 ```
 
 The codes for PT learning were coded in `python 3.9`.
-The 'PT.yml' file is provided to creates an environment with the required packages.
+The `PT.yml` file is provided to creates an environment with the required packages.
 ```
 conda env create -f ./PT.yml
 ```
@@ -38,17 +40,33 @@ cd ./PT/MD/shear
 sbatch sub.sh
 ```
 Note: 
-- The potential file 'cu.eam' can be replaced for other potential parameters and metals from [different sources](https://www.ctcms.nist.gov/potentials/).
-- The file 'in.lmp' is the input scripts of LAMMPS (Large-scale Atomic/Molecular Massively Parallel Simulator) to calculate the $\gamma$ surfaces. For metals with different lattice structures, lattice contants, mass, you should modify this template file.
-- The file 'sub.sh' is the script file that submits a task in the SLURM scheduling system, which specifies the number of computing resources the task occupies.
+- The potential file `cu.eam` can be replaced for other potential parameters and metals from [different sources](https://www.ctcms.nist.gov/potentials/).
+- The file `in.lmp` is the input scripts of LAMMPS (Large-scale Atomic/Molecular Massively Parallel Simulator) to calculate the $\gamma$ surfaces. For metals with different lattice structures, lattice contants, mass, you should modify this template file.
+- The file `sub.sh` is the script file that submits a task in the SLURM scheduling system, which specifies the number of computing resources the task occupies.
 
 To extract the $\gamma$ surfaces, and Peierls stresses from the MD (molecular dynamics) results, you can find the MATLAB code in the following directory.
 ```
 cd ./PT/Processing
 ```
 Note: 
-- The MATLAB script 'process_gamma_surface.m' is used to extract $\gamma$ surfaces.
-- The MATLAB script 'detect_dislocation_move.m' is used to identify the movements of dislocations and extract Peierls stresses.
+- The MATLAB script `process_gamma_surface.m` is used to extract $\gamma$ surfaces.
+- The MATLAB script `detect_dislocation_move.m` is used to identify the movements of dislocations and extract Peierls stresses.
 - For metals with differeet lattice structures, lattice contants, you should modify these template files.
 
-Finally, the digital libraries of MD results are saved as the file ```MD_libraries.mat```.
+Finally, the digital libraries of MD results are saved as the file `MD_libraries.mat`.
+
+The neuroevolution-potential (NEP) framework is adopted to develop Machine Learning Force Fields (MLFFs) for fcc Cu, Al, bcc Fe, and hcp Ti [2].
+The well-trained MLFFs are applied to calculate the $\gamma$ surfaces, and Peierls stresses utilizing same scripts only change the EAM/MEAM potentials to MLFFs potentials.
+The scripts and potentials files `nep.txt` can be found in the following directory.
+```
+cd ./PT/MLFFs
+```
+Finally, the digital libraries of MLFF results are saved as the file `MLFFs_libraries.mat`.
+
+To validate the hypothesis and feasibility of the PT framework, we directly calculate the Peierls stresses in small systems (`S', with 244 atoms).
+You can find the VASP (Vienna Ab initio Simulation Package) scripts in the following directory.
+```
+cd ./PT/DFT
+```
+Note: 
+- The `INCAR`, `OUTCAR`
