@@ -18,8 +18,6 @@ cd ./PT
 
 The codes for PT learning were coded in `python 3.9`.
 The 'PT.yml' file is provided to creates an environment with the required packages.
-
-Python packages and versions:
 ```
 conda env create -f ./PT.yml
 ```
@@ -34,7 +32,23 @@ To calculate the $\gamma$ surfaces, you can run the code on a HPC (high performa
 cd ./PT/MD/gsf
 sbatch sub.sh
 ```
+To calculate the Peierls stresses, you can run the following code.
+```
+cd ./PT/MD/shear
+sbatch sub.sh
+```
 Note: 
 - The potential file 'cu.eam' can be replaced for other potential parameters and metals from [different sources](https://www.ctcms.nist.gov/potentials/).
 - The file 'in.lmp' is the input scripts of LAMMPS (Large-scale Atomic/Molecular Massively Parallel Simulator) to calculate the $\gamma$ surfaces. For metals with different lattice structures, lattice contants, mass, you should modify this template file.
 - The file 'sub.sh' is the script file that submits a task in the SLURM scheduling system, which specifies the number of computing resources the task occupies.
+
+To extract the $\gamma$ surfaces, and Peierls stresses from the MD (molecular dynamics) results, you can find the MATLAB code in the following directory.
+```
+cd ./PT/Processing
+```
+Note: 
+- The MATLAB script 'process_gamma_surface.m' is used to extract $\gamma$ surfaces.
+- The MATLAB script 'detect_dislocation_move.m' is used to identify the movements of dislocations and extract Peierls stresses.
+- For metals with differeet lattice structures, lattice contants, you should modify these template files.
+
+Finally, the digital libraries of MD results are saved as the file ```MD_libraries.mat```.
