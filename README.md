@@ -1,5 +1,5 @@
 # Physics-Transfer Learning for Material Strength Screening
-
+![PT](./GA.png)
 ## Overview
 
 The strength of materials, like many problems in the natural sciences, spans multiple length and time scales, and the solution has to balance accuracy and performance.
