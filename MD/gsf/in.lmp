@@ -1,0 +1,120 @@
+echo both
+variable index    loop  1 1
+if "${index} < 10 " then "variable group string G0" else "variable group string G"
+log ${group}${index}.log
+variable xstep    equal 30
+variable ystep    equal 30
+variable xdisp    loop  0 ${xstep}
+variable ydisp    loop  0 ${ystep}
+variable mystep equal 30
+variable count loop ${mystep}
+variable fprefix string gsf
+
+variable a        equal 3.62
+#variable b0      equal $(v_a/sqrt(6))
+variable tol      equal 1e-6
+variable xs       equal 3*v_a
+variable ys       equal 3*v_a
+variable zs       equal 3*v_a
+
+variable o11      equal 1
+variable o12      equal -1
+variable o13      equal 0
+
+variable o21      equal 1
+variable o22      equal 1
+variable o23      equal -2
+
+variable o31      equal 1
+variable o32      equal 1
+variable o33      equal 1
+
+variable xdp      equal v_a*sqrt(v_o11^2+v_o12^2+v_o13^2)
+variable ydp      equal v_a*sqrt(v_o21^2+v_o22^2+v_o23^2)
+variable zdp      equal v_a*sqrt(v_o31^2+v_o32^2+v_o33^2)
+variable xn       equal round(v_xs/v_xdp)
+variable yn       equal round(v_ys/v_ydp)
+variable zn       equal round(v_zs/v_zdp)
+variable xlen     equal v_xn*v_xdp
+variable ylen     equal v_yn*v_ydp
+variable zlen     equal v_zn*v_zdp
+#variable L0       equal v_zn*4.06
+
+units          metal
+timestep    0.001
+dimension	3
+boundary	p p p
+atom_style	atomic
+neighbor	0.3 bin
+neigh_modify	delay 10
+ 
+# create geometry
+
+lattice         fcc ${a}  orient x ${o11} ${o12} ${o13} orient y ${o21} ${o22} ${o23} orient z ${o31} ${o32} ${o33}
+region          box1 block $(0-v_tol) $(v_xlen+v_tol) $(0-v_tol) $(v_ylen+v_tol) $(0-v_zlen-30) $(v_zlen+30) units box
+create_box      1 box1
+region          box2 block $(0-v_tol) $(v_xlen+v_tol) $(0-v_tol) $(v_ylen+v_tol) $(0-v_zlen-v_tol) $(v_zlen+v_tol) units box
+create_atoms    1 region box2
+
+region top block INF INF INF INF $(0-v_tol) INF
+region bot block INF INF INF INF INF $(0-v_tol)
+region topfix block INF INF INF INF $(v_zlen-v_tol-sqrt(3)/3*2*v_a) INF units box
+region botfix block INF INF INF INF  INF $(0-v_zlen+v_tol+sqrt(3)/3*2*v_a) units box
+group bot region bot
+group top region top
+group botfix region botfix
+group topfix region topfix
+group botrex subtract bot botfix
+group toprex subtract top topfix
+
+# potentials
+mass * 63.546
+pair_style eam
+pair_coeff * *  cu.eam
+thermo 100
+variable natom equal atoms
+variable etotal equal etotal
+variable pyy equal pyy
+variable ly   equal ly
+variable lx   equal lx
+
+
+compute peratom all pe/atom
+compute pe all reduce sum c_peratom
+thermo_style custom step temp etotal press pe c_pe
+min_modify dmax 0.01
+fix boxrelax all box/relax x 0 y 0 z 0 fixedpoint 0 0 0
+minimize 0 1e-8 10000 10000
+#write_dump all atom ${fprefix}-${group}${index}.lammpstrj modify scale no append yes
+unfix boxrelax
+
+if "(${xdisp}==0) && (${ydisp}==0)" then & 
+   "print '# lx ly natom xstep ystep' file  ${group}${index}.data" &
+   "print '${lx} ${ly} ${natom} ${xstep} ${ystep}' append  ${group}${index}.data" &
+   "print '# xstep ystep xdisp ydisp etotal' append  ${group}${index}.data" &
+   "write_dump all custom ${fprefix}-${group}${index}.lammpstrj id type x y z c_peratom modify format float %.13e"
+
+variable xb   equal $(v_lx/v_xn/2)
+variable yb   equal $(v_ly/v_yn/2)
+#variable L0 equal ${ly}
+
+fix fix1 toprex setforce 0.0 0.0 NULL
+fix fix2 botrex setforce 0.0 0.0 NULL
+fix fix3 topfix setforce 0.0 0.0 NULL
+fix fix4 botfix setforce 0.0 0.0 NULL
+
+run 0
+
+displace_atoms top move $(v_xdisp/v_xstep*v_xb+v_ydisp/v_ystep*v_xb/2) $(v_ydisp/v_ystep*v_xb*sqrt(3)/2) 0.0 units box
+minimize 1e-8 0.0 10000 10000
+print "${xdisp} ${ydisp} $(v_xdisp/v_xstep*v_xb+v_ydisp/v_xstep*v_xb/2) $(v_ydisp/v_ystep*v_xb*sqrt(3)/2) ${etotal}" append ${group}${index}.data
+write_dump all custom ${fprefix}-${group}${index}.lammpstrj id type x y z c_peratom modify append yes format float %.13e
+
+
+clear
+next xdisp
+jump in.lmp
+next ydisp
+jump in.lmp
+next index
+jump in.lmp

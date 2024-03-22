@@ -1,0 +1,22 @@
+SYSTEM = Various- local optimisation
+LREAL  = Auto
+PREC = Accurate
+ENCUT = 500
+EDIFF = 1e-5
+IBRION = 2
+NSW =60
+ISIF = 3
+ISMEAR =0
+SIGMA = 0.05
+#POTIM = 0.1
+#No writing charge density and wavefunction
+LCHARG = FALSE
+LWAVE = FALSE
+#Target Pressure
+PSTRESS = 0.0
+#Finer optimization
+EDIFFG =1e-4
+#Parallelisation
+NCORE = 8
+EDIFFG = -0.05
+ALGO = VeryFast

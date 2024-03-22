@@ -1,0 +1,154 @@
+echo both
+variable index    loop  1 1
+if "${index} < 10 " then "variable group string G0" else "variable group string G"
+
+variable xl       equal 400
+variable zl     equal 50
+variable mystep equal 200 #round(100/50*v_xl)
+variable count loop ${mystep}
+variable mytemp equal 50
+variable freq_dump equal 1
+
+#variable L0       equal 318.236   # 10.6079
+variable a        equal 3.62
+variable xs       equal v_xl*v_a
+variable ys       equal 4*v_a
+variable zs       equal v_zl*v_a
+variable o11      equal 1
+variable o12      equal -1
+variable o13      equal 0
+
+variable o21      equal 1
+variable o22      equal 1
+variable o23      equal -2
+
+variable o31      equal 1
+variable o32      equal 1
+variable o33      equal 1
+
+variable xdp      equal v_a*sqrt(v_o11^2+v_o12^2+v_o13^2)
+variable ydp      equal v_a*sqrt(v_o21^2+v_o22^2+v_o23^2)
+variable zdp      equal v_a*sqrt(v_o31^2+v_o32^2+v_o33^2)
+variable xn       equal round(v_xs/v_xdp)
+variable yn       equal round(v_ys/v_ydp)
+variable zn       equal round(v_zs/v_zdp)
+variable xlen     equal v_xn*v_xdp
+variable ylen     equal v_yn*v_ydp/2
+variable zlen     equal v_zn*v_zdp/3*2
+variable xlen2    equal (v_xn-0.5)*v_xdp-0.0001
+
+units           metal
+timestep        0.001
+dimension   3
+boundary    p p p
+log ${group}${index}.log
+atom_style  atomic
+neighbor    0.3 bin
+neigh_modify    delay 10
+
+# create geometry
+
+lattice         fcc ${a}  orient x ${o11} ${o12} ${o13} orient y ${o21} ${o22} ${o23} orient z ${o31} ${o32} ${o33}
+region          box1 block -0.0001 $(v_xlen-0.0001) -0.0001 $(v_ylen-0.0001)  $(0-v_zlen-10) $(v_zlen+10) units box
+create_box      1 box1
+region          upper block -0.0001 $(v_xlen-0.0001) -0.0001 $(v_ylen-0.0001) -0.0001 $(v_zlen+0.0001) units box
+create_atoms    1 region upper
+mass * 63.546
+pair_style eam
+pair_coeff * *  cu.eam
+
+#write_dump center atom ${group}${index}.lammpstrj modify scale no
+fix df all deform 1 x delta 0 $(v_xlen2-v_xlen)  units box
+run 1
+unfix df
+#write_dump center atom ${group}${index}.lammpstrj modify scale no append yes
+
+region          lower block -0.0001 $(v_xlen2-0.0001) -0.0001 $(v_ylen-0.0001) $(0-v_zlen-0.0001) -0.0001 units box
+create_atoms    1 region lower
+
+region       bot   block -0.0001 $(v_xlen2-0.0001) -0.0001 $(v_ylen-0.0001) $(0-v_zlen-0.0001) $(0-v_zlen+v_zdp+0.0001) units box
+region       top   block -0.0001 $(v_xlen2-0.0001) -0.0001 $(v_ylen-0.0001) $(v_zlen-v_zdp-0.0001) $(v_zlen+0.0001)  units box
+region       center block INF INF INF INF -20 20 units box
+
+group upper  region upper
+group lower  region lower
+group top    region top
+group bot    region bot
+group center region center
+
+write_dump center atom ${group}${index}.lammpstrj modify scale no sort id
+
+# potential
+mass * 63.546
+pair_style eam
+pair_coeff * *  cu10.eam
+thermo 1000
+thermo_style custom step temp ke pe etotal lz pzz
+
+fix fix1 upper setforce NULL NULL 0.0
+fix fix2 lower setforce NULL NULL 0.0
+min_style fire
+minimize 0 1e-8 20000 20000
+write_dump center atom ${group}${index}.lammpstrj modify scale no append yes sort id
+unfix fix1
+unfix fix2
+
+velocity all create ${mytemp} $(49384+v_index*100) mom yes rot yes
+fix 1 all nve
+fix 2 all temp/berendsen ${mytemp} ${mytemp} 1
+fix mom1 all momentum 1000 linear 1 1 1 angular
+
+run 30000
+unfix 1
+unfix 2
+
+min_style cg
+fix fix3 top setforce NULL NULL 0.0
+fix fix4 bot setforce NULL NULL 0.0
+fix boxrlx   all box/relax x  0.0 y 0.0
+minimize 0 1e-8 10000 10000
+write_dump center atom ${group}${index}.lammpstrj modify scale no append yes sort id
+unfix fix3
+unfix fix4
+unfix boxrlx
+
+fix fix3 top setforce 0.0 NULL 0.0
+fix fix4 bot setforce 0.0 NULL 0.0
+
+variable ftx equal f_fix3[1]
+variable fty equal f_fix3[2]
+variable ftz equal f_fix3[3]
+variable fbx equal f_fix4[1]
+variable fby equal f_fix4[2]
+variable fbz equal f_fix4[3]
+variable pe  equal pe
+variable na  equal atoms
+
+compute zmin all reduce min z
+compute zmax all reduce max z
+thermo_style custom step pe atoms lx ly lz v_ftx v_fty v_ftz v_fbx v_fby v_fbz c_zmax c_zmin v_pe v_na
+run 0
+variable xsize equal lx
+variable ysize equal ly
+variable zsize equal c_zmax-c_zmin
+
+print "xsize ysize zsize natoms" file ${group}${index}.data
+print "${xsize} ${ysize} ${zsize} ${na}" append ${group}${index}.data
+print "count disp ftx fty ftz fbx fby fbz pe" append ${group}${index}.data
+run 0
+print "0 0 $(v_ftx) $(v_fty) $(v_ftz) $(v_fbx) $(v_fby) $(v_fbz) $(v_pe)" append ${group}${index}.data
+
+label loop 
+
+displace_atoms top move $(v_a/1000) 0.0 0.0 units box
+thermo_style custom step pe atoms lx ly lz  v_ftx v_fty v_ftz v_fbx v_fby v_fbz v_pe v_na
+minimize 0 1e-8 10000 10000
+print "${count} $(v_a/1000*v_count) $(v_ftx) $(v_fty) $(v_ftz) $(v_fbx) $(v_fby) $(v_fbz) $(v_pe)" append ${group}${index}.data
+variable flag equal v_count%v_freq_dump
+if "${flag} == 0" then "write_dump center atom ${group}${index}.lammpstrj modify  scale no append yes sort id"
+
+next count
+jump SELF loop
+
+next index
+jump in.lmp
